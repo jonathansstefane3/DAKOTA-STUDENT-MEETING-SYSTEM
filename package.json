@@ -1,0 +1,1 @@
+{"name":"classlink","version":"1.0.0","description":"Virtual classroom: lessons, discussions, assignments, supervision","main":"server.js","scripts":{"start":"node server.js"}}

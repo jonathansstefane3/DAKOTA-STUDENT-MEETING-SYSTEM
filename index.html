@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ClassLink – Virtual Classroom</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f5f6fa;--card:#fff;--tx:#1d2433;--mu:#667085;--bd:#e3e6ee;--pr:#3a5bd9;--prt:#fff;--ok:#157f4b;--bad:#c23a3a;--soft:#eaeefc}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#12151c;--card:#1b2029;--tx:#e8ebf2;--mu:#98a2b3;--bd:#2c3340;--pr:#7d96ff;--prt:#0f1320;--ok:#4cc38a;--bad:#ff7b7b;--soft:#232a3f}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#12151c;--card:#1b2029;--tx:#e8ebf2;--mu:#98a2b3;--bd:#2c3340;--pr:#7d96ff;--prt:#0f1320;--ok:#4cc38a;--bad:#ff7b7b;--soft:#232a3f}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--bd)}
+h1{font-size:18px;margin:0}h2{font-size:16px;margin:0 0 6px}
+main{max-width:860px;margin:0 auto;padding:16px}
+nav{display:flex;gap:6px;overflow-x:auto;margin-bottom:14px}
+nav button,.btn{border:1px solid var(--bd);background:var(--card);color:var(--tx);padding:8px 14px;border-radius:8px;cursor:pointer;font:inherit;white-space:nowrap}
+nav button.on,.btn.p{background:var(--pr);color:var(--prt);border-color:var(--pr)}
+.btn.s{padding:4px 10px;font-size:13px}.btn.d{color:var(--bad)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:12px}
+input,textarea,select{width:100%;padding:9px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);font:inherit;margin:4px 0}
+.mu{color:var(--mu);font-size:13px}.tag{background:var(--soft);color:var(--pr);border-radius:20px;padding:1px 9px;font-size:12px}
+.rep{border-left:3px solid var(--bd);padding:4px 0 4px 10px;margin:8px 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tw{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:480px}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--bd)}
+.bar{height:8px;background:var(--soft);border-radius:8px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ok)}
+.ok{color:var(--ok)}.bad{color:var(--bad)}
+</style></head><body>
+<header><h1>🎓 ClassLink <span class="mu">· Biology 101 (remote)</span></h1>
+<div class="row"><label class="mu" for="who">Signed in as</label>
+<select id="who" style="width:auto"></select></div></header>
+<main><nav id="nav"></nav><div id="view"></div></main>
+<script>
+const USERS={t:{n:'Ms. Achieng',r:'teacher'},s1:{n:'Brian',r:'student'},s2:{n:'Grace',r:'student'},s3:{n:'Samuel',r:'student'}};
+const now=()=>new Date().toLocaleString([], {dateStyle:'medium',timeStyle:'short'});
+let S={user:'t',tab:'lessons',seen:{},
+lessons:[{id:1,title:'Week 1: Cell structure',body:'Read chapter 2, then watch the video on organelles. Post your questions in the Discussion tab.',link:'',time:now()}],
+threads:[{id:1,title:'What does the mitochondrion do?',author:'t',text:'Explain in your own words and give one everyday analogy.',time:now(),pin:true,replies:[{a:'s2',text:'It makes energy (ATP) for the cell, like a power plant for a town.',time:now(),hide:false}]}],
+assigns:[{id:1,title:'Label a plant cell',desc:'Draw and label 8 parts of a plant cell. Describe the diagram in text.',due:'Friday',subs:{}}]};
+const shared=()=>({lessons:S.lessons,threads:S.threads,assigns:S.assigns,seen:S.seen});
+const save=()=>{fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(shared())}).catch(()=>{})};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const T=()=>USERS[S.user].r==='teacher';
+const $=id=>document.getElementById(id);
+const val=id=>($(id)||{}).value||'';
+const touch=()=>{S.seen[S.user]=now();save()};
+function render(){
+ $('who').innerHTML=Object.entries(USERS).map(([k,u])=>`<option value="${k}" ${k===S.user?'selected':''}>${u.n} (${u.r})</option>`).join('');
+ const tabs=[['lessons','📚 Lessons'],['disc','💬 Discussion'],['assign','📝 Assignments']];
+ if(T())tabs.push(['mon','👁 Supervise']);
+ if(S.tab==='mon'&&!T())S.tab='lessons';
+ $('nav').innerHTML=tabs.map(([k,l])=>`<button data-tab="${k}" class="${S.tab===k?'on':''}">${l}</button>`).join('');
+ $('view').innerHTML={lessons,disc,assign,mon}[S.tab]();
+}
+function lessons(){
+ return (T()?`<div class="card"><h2>Post a lesson</h2><input id="lt" placeholder="Lesson title"><textarea id="lb" rows="3" placeholder="Notes, instructions, reading…"></textarea><input id="ll" placeholder="Video or resource link (optional)"><button class="btn p" data-act="addLesson">Publish lesson</button></div>`:'')+
+ S.lessons.slice().reverse().map(l=>`<div class="card"><h2>${esc(l.title)}</h2><div class="mu">${l.time}</div><p>${esc(l.body).replace(/\n/g,'<br>')}</p>${l.link?`<a href="${esc(l.link)}" target="_blank" rel="noopener">Open resource ↗</a>`:''}${T()?` <button class="btn s d" data-act="delLesson" data-id="${l.id}">Delete</button>`:''}</div>`).join('')||'<p class="mu">No lessons yet.</p>';
+}
+function disc(){
+ const th=S.threads.slice().sort((a,b)=>(b.pin?1:0)-(a.pin?1:0)||b.id-a.id);
+ return `<div class="card"><h2>Start a discussion</h2><input id="dt" placeholder="Topic or question"><textarea id="dx" rows="2" placeholder="Add details…"></textarea><button class="btn p" data-act="addThread">Post</button></div>`+
+ th.map(t=>`<div class="card"><div class="row"><h2 style="margin:0">${t.pin?'📌 ':''}${esc(t.title)}</h2>${USERS[t.author].r==='teacher'?'<span class="tag">Teacher</span>':''}</div>
+ <div class="mu">${USERS[t.author].n} · ${t.time}</div><p>${esc(t.text)}</p>
+ ${t.replies.map((r,i)=>(r.hide&&!T())?'':`<div class="rep" style="${r.hide?'opacity:.5':''}"><b>${USERS[r.a].n}</b> <span class="mu">${r.time}</span>${r.hide?' <span class="tag">hidden</span>':''}<br>${esc(r.text)}${T()?` <button class="btn s" data-act="hide" data-id="${t.id}" data-i="${i}">${r.hide?'Show':'Hide'}</button>`:''}</div>`).join('')}
+ <div class="row"><input id="r${t.id}" placeholder="Write a reply…" style="flex:1"><button class="btn s p" data-act="reply" data-id="${t.id}">Reply</button>
+ ${T()?`<button class="btn s" data-act="pin" data-id="${t.id}">${t.pin?'Unpin':'Pin'}</button><button class="btn s d" data-act="delThread" data-id="${t.id}">Delete</button>`:''}</div></div>`).join('');
+}
+function assign(){
+ return (T()?`<div class="card"><h2>New assignment</h2><input id="at" placeholder="Title"><textarea id="ad" rows="2" placeholder="Instructions"></textarea><input id="au" placeholder="Due (e.g. Friday 5pm)"><button class="btn p" data-act="addAssign">Assign</button></div>`:'')+
+ S.assigns.map(a=>{
+  let body='';
+  if(T()){
+   body=Object.keys(USERS).filter(k=>k!=='t').map(k=>{const s=a.subs[k];return `<div class="rep"><b>${USERS[k].n}</b> ${s?`<span class="tag ok">Submitted</span><br>${esc(s.text)}<div class="row"><input id="g${a.id}${k}" placeholder="Grade" value="${esc(s.grade||'')}" style="width:90px"><input id="f${a.id}${k}" placeholder="Feedback" value="${esc(s.fb||'')}" style="flex:1"><button class="btn s p" data-act="grade" data-id="${a.id}" data-k="${k}">Save</button></div>`:'<span class="tag bad">Missing</span>'}</div>`}).join('');
+  }else{
+   const s=a.subs[S.user];
+   body=s?`<p class="ok">✓ Submitted</p><p>${esc(s.text)}</p>${s.grade?`<p><b>Grade:</b> ${esc(s.grade)}<br><b>Feedback:</b> ${esc(s.fb||'—')}</p>`:'<p class="mu">Awaiting grading.</p>'}`:`<textarea id="s${a.id}" rows="3" placeholder="Type your answer…"></textarea><button class="btn p" data-act="submit" data-id="${a.id}">Submit</button>`;
+  }
+  return `<div class="card"><h2>${esc(a.title)}</h2><div class="mu">Due: ${esc(a.due||'—')}</div><p>${esc(a.desc)}</p>${body}</div>`}).join('');
+}
+function mon(){
+ const ss=Object.keys(USERS).filter(k=>k!=='t');
+ const rows=ss.map(k=>{
+  const th=S.threads.filter(t=>t.author===k).length,rp=S.threads.reduce((n,t)=>n+t.replies.filter(r=>r.a===k).length,0);
+  const sb=S.assigns.filter(a=>a.subs[k]).length,pct=S.assigns.length?Math.round(sb/S.assigns.length*100):0;
+  return `<tr><td><b>${USERS[k].n}</b></td><td>${th+rp}</td><td><div class="bar"><i style="width:${pct}%"></i></div><span class="mu">${sb}/${S.assigns.length}</span></td><td class="mu">${S.seen[k]||'Not yet active'}</td><td>${th+rp+sb===0?'<span class="tag bad">Needs a nudge</span>':'<span class="tag ok">Active</span>'}</td></tr>`}).join('');
+ return `<div class="card"><h2>Class overview</h2><div class="mu">Participation and submissions at a glance. Hide inappropriate replies from the Discussion tab.</div><div class="tw"><table><tr><th>Student</th><th>Posts</th><th>Submitted</th><th>Last active</th><th>Status</th></tr>${rows}</table></div></div>
+ <div class="card"><h2>Announcement</h2><div class="mu">Posts a pinned message to the Discussion board.</div><input id="an" placeholder="e.g. Quiz on Monday – revise chapter 2"><button class="btn p" data-act="announce">Send announcement</button></div>`;
+}
+document.addEventListener('click',e=>{
+ const tb=e.target.closest('[data-tab]');if(tb){S.tab=tb.dataset.tab;render();return}
+ const b=e.target.closest('[data-act]');if(!b)return;
+ const id=+b.dataset.id,act=b.dataset.act,U=S.user;
+ const th=S.threads.find(t=>t.id===id),as=S.assigns.find(a=>a.id===id);
+ if(act==='addLesson'&&val('lt')){S.lessons.push({id:Date.now(),title:val('lt'),body:val('lb'),link:val('ll'),time:now()})}
+ else if(act==='delLesson')S.lessons=S.lessons.filter(l=>l.id!==id);
+ else if(act==='addThread'&&val('dt')){S.threads.push({id:Date.now(),title:val('dt'),author:U,text:val('dx'),time:now(),pin:false,replies:[]})}
+ else if(act==='reply'&&val('r'+id)){th.replies.push({a:U,text:val('r'+id),time:now(),hide:false})}
+ else if(act==='hide')th.replies[+b.dataset.i].hide=!th.replies[+b.dataset.i].hide;
+ else if(act==='pin')th.pin=!th.pin;
+ else if(act==='delThread')S.threads=S.threads.filter(t=>t.id!==id);
+ else if(act==='addAssign'&&val('at')){S.assigns.push({id:Date.now(),title:val('at'),desc:val('ad'),due:val('au'),subs:{}})}
+ else if(act==='submit'&&val('s'+id)){as.subs[U]={text:val('s'+id)}}
+ else if(act==='grade'){const k=b.dataset.k;as.subs[k].grade=val('g'+id+k);as.subs[k].fb=val('f'+id+k)}
+ else if(act==='announce'&&val('an')){S.threads.push({id:Date.now(),title:'📢 Announcement',author:U,text:val('an'),time:now(),pin:true,replies:[]});S.tab='disc'}
+ touch();render();
+});
+$('who').addEventListener('change',e=>{S.user=e.target.value;touch();render()});
+fetch('/api/state').then(r=>r.json()).then(d=>{if(d&&d.lessons)Object.assign(S,d);touch();render()}).catch(render);
+const es=new EventSource('/api/events');
+es.onmessage=e=>{Object.assign(S,JSON.parse(e.data));const a=document.activeElement;if(!(a&&/INPUT|TEXTAREA/.test(a.tagName)&&a.value))render()};
+</script></body></html>
